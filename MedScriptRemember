@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medication App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+        }
+        form {
+            margin-bottom: 20px;
+        }
+        input, button {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            font-size: 16px;
+        }
+        button {
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .reminder {
+            background-color: #ffeb3b;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Medication App</h1>
+
+        <form id="addMedicationForm">
+            <h2>Add Medication</h2>
+            <input type="text" id="medicationName" placeholder="Medication Name" required>
+            <input type="number" id="totalPills" placeholder="Total Pills" required>
+            <input type="number" id="dailyDosage" placeholder="Daily Dosage" required>
+            <button type="submit">Add Medication</button>
+        </form>
+
+        <form id="adjustUsageForm">
+            <h2>Adjust Daily Usage</h2>
+            <input type="text" id="adjustMedicationName" placeholder="Medication Name" required>
+            <input type="number" id="newDailyUsage" placeholder="New Daily Usage" required>
+            <button type="submit">Adjust Usage</button>
+        </form>
+
+        <form id="sendRemindersForm">
+            <h2>Manually Send Reminders</h2>
+            <button type="submit">Send Reminders</button>
+        </form>
+
+        <form id="changeDateTimeForm">
+            <h2>Change System Date and Time</h2>
+            <input type="datetime-local" id="newDateTime" required>
+            <button type="submit">Change DateTime</button>
+        </form>
+
+        <div id="reminders"></div>
+    </div>
+
+    <script>
+        class Medication {
+            constructor(name, totalPills, perDay, startDate) {
+                this.name = name;
+                this.totalPills = totalPills;
+                this.perDay = perDay;
+                this.startDate = startDate;
+                this.dailyTally = 0;
+            }
+
+            calculateDailyUsage() {
+                const today = new Date().toISOString().split('T')[0];
+                const start = new Date(this.startDate).toISOString().split('T')[0];
+                const daysElapsed = (new Date(today) - new Date(start)) / (1000 * 60 * 60 * 24);
+                this.dailyTally = Math.min(this.totalPills, this.perDay * daysElapsed);
+            }
+
+            takeDailyDosage() {
+                const currentTime = new Date().toTimeString().split(' ')[0];
+                if (currentTime >= "08:59:00") {
+                    this.takeDosage(this.perDay);
+                }
+            }
+
+            takeDosage(taken) {
+                if (taken > this.perDay) {
+                    alert("You can't take more than the daily dosage.");
+                } else {
+                    this.dailyTally += taken;
+                    this.totalPills -= taken;
+                }
+            }
+        }
+
+        const medications = [];
+
+        document.getElementById('addMedicationForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const name = document.getElementById('medicationName').value;
+            const totalPills = parseInt(document.getElementById('totalPills').value);
+            const perDay = parseInt(document.getElementById('dailyDosage').value);
+            const startDate = new Date().toISOString().split('T')[0];
+            const medication = new Medication(name, totalPills, perDay, startDate);
+            medications.push(medication);
+            alert(`${name} added successfully!`);
+            this.reset();
+        });
+
+        document.getElementById('adjustUsageForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const name = document.getElementById('adjustMedicationName').value;
+            const newUsage = parseInt(document.getElementById('newDailyUsage').value);
+            const medication = medications.find(med => med.name === name);
+            if (medication) {
+                medication.dailyTally = newUsage;
+                alert(`${medication.name} daily usage adjusted to ${newUsage}.`);
+            } else {
+                alert("Medication not found.");
+            }
+            this.reset();
+        });
+
+        document.getElementById('sendRemindersForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const remindersDiv = document.getElementById('reminders');
+            remindersDiv.innerHTML = '';
+            const today = new Date().toISOString().split('T')[0];
+            const reminders = [];
+            medications.forEach(medication => {
+                const daysElapsed = (new Date(today) - new Date(medication.startDate)) / (1000 * 60 * 60 * 24);
+                const daysLeft = (medication.totalPills - medication.dailyTally) / medication.perDay;
+                if (new Date(medication.startDate).toISOString().split('T')[0] === today) {
+                    if (daysLeft <= 2) {
+                        reminders.push(`Reminder: New repeat for ${medication.name}. Only ${Math.ceil(daysLeft)} day(s) supply left.`);
+                    }
+                } else if (daysLeft <= 4 && daysElapsed < daysLeft) {
+                    reminders.push(`Reminder: Running low on ${medication.name}. Only ${Math.ceil(daysLeft)} day(s) supply left.`);
+                }
+            });
+            reminders.forEach(reminder => {
+                const reminderDiv = document.createElement('div');
+                reminderDiv.className = 'reminder';
+                reminderDiv.innerText = reminder;
+                remindersDiv.appendChild(reminderDiv);
+            });
+        });
+
+        document.getElementById('changeDateTimeForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const newDateTime = document.getElementById('newDateTime').value;
+            if (new Date(newDateTime).toString() !== 'Invalid Date') {
+                Date.prototype.toISOString = function () {
+                    return new Date(newDateTime).toISOString();
+                };
+                alert("System date and time changed successfully.");
+            } else {
+                alert("Invalid datetime format. Use YYYY-MM-DDTHH:MM.");
+            }
+            this.reset();
+        });
+
+        setInterval(() => {
+            medications.forEach(medication => medication.takeDailyDosage());
+        }, 60000);
+    </script>
+
+</body>
+</html>
