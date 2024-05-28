@@ -1,0 +1,103 @@
+class Medication {
+    constructor(name, totalPills, perDay, startDate) {
+        this.name = name;
+        this.totalPills = totalPills;
+        this.perDay = perDay;
+        this.startDate = startDate;
+        this.dailyTally = 0;
+    }
+
+    calculateDailyUsage() {
+        const today = new Date().toISOString().split('T')[0];
+        const start = new Date(this.startDate).toISOString().split('T')[0];
+        const daysElapsed = (new Date(today) - new Date(start)) / (1000 * 60 * 60 * 24);
+        this.dailyTally = Math.min(this.totalPills, this.perDay * daysElapsed);
+    }
+
+    takeDailyDosage() {
+        const currentTime = new Date().toTimeString().split(' ')[0];
+        if (currentTime >= "08:59:00") {
+            this.takeDosage(this.perDay);
+        }
+    }
+
+    takeDosage(taken) {
+        if (taken > this.perDay) {
+            alert("You can't take more than the daily dosage.");
+        } else {
+            this.dailyTally += taken;
+            this.totalPills -= taken;
+        }
+    }
+}
+
+const medications = [];
+
+document.getElementById('addMedicationForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    const name = document.getElementById('medicationName').value;
+    const totalPills = parseInt(document.getElementById('totalPills').value);
+    const perDay = parseInt(document.getElementById('dailyDosage').value);
+    const startDate = new Date().toISOString().split('T')[0];
+    const medication = new Medication(name, totalPills, perDay, startDate);
+    medications.push(medication);
+    alert(`${name} added successfully!`);
+    this.reset();
+});
+
+document.getElementById('adjustUsageForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    const name = document.getElementById('adjustMedicationName').value;
+    const newUsage = parseInt(document.getElementById('newDailyUsage').value);
+    const medication = medications.find(med => med.name === name);
+    if (medication) {
+        medication.dailyTally = newUsage;
+        alert(`${medication.name} daily usage adjusted to ${newUsage}.`);
+    } else {
+        alert("Medication not found.");
+    }
+    this.reset();
+});
+
+document.getElementById('sendRemindersForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    const remindersDiv = document.getElementById('reminders');
+    remindersDiv.innerHTML = '';
+    const today = new Date().toISOString().split('T')[0];
+    const reminders = [];
+    medications.forEach(medication => {
+        const daysElapsed = (new Date(today) - new Date(medication.startDate)) / (1000 * 60 * 60 * 24);
+        const daysLeft = (medication.totalPills - medication.dailyTally) / medication.perDay;
+        if (new Date(medication.startDate).toISOString().split('T')[0] === today) {
+            if (daysLeft <= 2) {
+                reminders.push(`Reminder: New repeat for ${medication.name}. Only ${Math.ceil(daysLeft)} day(s) supply left.`);
+            }
+        } else if (daysLeft <= 4 && daysElapsed < daysLeft) {
+            reminders.push(`Reminder: Running low on ${medication.name}. Only ${Math.ceil(daysLeft)} day(s) supply left.`);
+        }
+    });
+    reminders.forEach(reminder => {
+        const reminderDiv = document.createElement('div');
+        reminderDiv.className = 'reminder';
+        reminderDiv.innerText = reminder;
+        remindersDiv.appendChild(reminderDiv);
+    });
+});
+
+document.getElementById('changeDateTimeForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    const newDateTime = document.getElementById('newDateTime').value;
+    if (new Date(newDateTime).toString() !== 'Invalid Date') {
+        Date.prototype.toISOString = function () {
+            return new Date(newDateTime).toISOString();
+        };
+        alert("System date and time changed successfully.");
+    } else {
+        alert("Invalid datetime format. Use YYYY-MM-DDTHH:MM.");
+    }
+    this.reset();
+});
+
+setInterval(() => {
+    medications.forEach(medication => medication.takeDailyDosage());
+}, 60000);
